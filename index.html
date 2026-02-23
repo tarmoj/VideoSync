@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Sync Video</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script> 
+    
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: auto; }
+        #qrcode { background: white; padding: 10px; display: inline-block; margin: 20px; border-radius: 8px; }
+        #reader { width: 100%; max-width: 400px; margin: auto; border: 1px solid #555; }
+        video { width: 100%; border-radius: 12px; margin-top: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .btn { padding: 12px 24px; font-size: 16px; border: none; border-radius: 25px; cursor: pointer; margin: 5px; transition: 0.3s; }
+        .btn-host { background: #00c853; color: white; }
+        .btn-join { background: #2979ff; color: white; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>P2P Video Sync</h2>
+    
+    <div id="setup-ui">
+        <button class="btn btn-host" onclick="startAsHost()">Be the Host (Show QR)</button>
+        <button class="btn btn-join" onclick="startAsClient()">Join Session (Scan QR)</button>
+    </div>
+
+    <div id="host-ui" class="hidden">
+        <p>Scan this with the other tablet:</p>
+        <div id="qrcode"></div>
+        <p>ID: <span id="my-id">...</span></p>
+    </div>
+
+    <div id="client-ui" class="hidden">
+        <div id="reader"></div>
+        <p>Pointing your camera at the Host's QR code...</p>
+    </div>
+
+    <video id="sync-video" controls preload="auto">
+        <source src="./smjorRennsli1.mp4" type="video/mp4">
+    </video>
+    
+    <p id="status" style="margin-top:20px; color: #ffab00;"></p>
+</div>
+
+<script>
+    const video = document.getElementById('sync-video');
+    const status = document.getElementById('status');
+    let peer = null; //new Peer();
+    let conn = null;
+
+    // --- HOST LOGIC ---
+    function startAsHost() {
+        document.getElementById('setup-ui').classList.add('hidden');
+        document.getElementById('host-ui').classList.remove('hidden');
+        peer = new Peer();
+
+        peer.on('open', (id) => {
+            document.getElementById('my-id').innerText = id;
+            console.log("Peer ID:", id);
+            new QRCode(document.getElementById("qrcode"), id); // Generate QR
+        });
+
+        peer.on('connection', (connection) => {
+            conn = connection;
+            initSync();
+            status.innerText = "Syncing with Client...";
+        });
+    }
+
+    // --- CLIENT LOGIC ---
+    function startAsClient() {
+        document.getElementById('setup-ui').classList.add('hidden');
+        document.getElementById('client-ui').classList.remove('hidden');
+
+        peer = new Peer();
+
+        const html5QrCode = new Html5Qrcode("reader");
+        html5QrCode.start(
+            { facingMode: "environment" }, 
+            { fps: 10, qrbox: { width: 250, height: 250 } },
+            (decodedText) => {
+                // When QR is scanned:
+                html5QrCode.stop();
+                document.getElementById('client-ui').classList.add('hidden');
+                console.log("Decoded QR:", decodedText);
+                conn = peer.connect(decodedText);
+                initSync();
+                status.innerText = "Connected to Host!";
+            }
+        ).catch(err => console.error("Camera error:", err));
+    }
+
+    // --- SYNC CORE ---
+    function initSync() {
+        conn.on('data', (data) => {
+            if (data.type === 'SYNC') {
+                // If drift > 0.5s, correct it
+                if (Math.abs(video.currentTime - data.time) > 0.5) {
+                    video.currentTime = data.time;
+                }
+                data.playing ? video.play() : video.pause();
+            }
+        });
+
+        const sync = () => {
+            if (conn && conn.open) {
+                conn.send({ type: 'SYNC', time: video.currentTime, playing: !video.paused });
+            }
+        };
+
+        video.onplay = sync;
+        video.onpause = sync;
+        video.onseeking = sync;
+    }
+</script>
+</body>
+</html>
