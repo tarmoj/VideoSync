@@ -35,6 +35,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
         #qrcode { background: white; padding: 10px; display: inline-block; margin: 20px; border-radius: 8px; cursor: pointer; }
         #reader { width: 100%; max-width: 400px; margin: auto; border: 1px solid #555; }
         video { width: 100%; border-radius: 12px; margin-top: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .video-wrap { position: relative; }
+        .timecode { position: absolute; top: 16px; left: 3px; background: rgba(0,0,0,0.05); color: #fff; padding: 4px 8px; border-radius: 6px; font-size: 14px; font-variant-numeric: tabular-nums; pointer-events: none; }
         .btn { padding: 12px 24px; font-size: 16px; border: none; border-radius: 25px; cursor: pointer; margin: 5px; transition: 0.3s; }
         .qr-toggle-link { color: #00c853; cursor: pointer; text-decoration: underline; font-size: 16px; }
         .btn-host { background: #00c853; color: white; }
@@ -79,9 +81,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
         </select>
     </div>
 
-    <video id="sync-video" controls preload="auto">
-        <source src="./smjorRennsli1.mp4" type="video/mp4">
-    </video>
+    <div class="video-wrap">
+        <div id="timecode" class="timecode">00:00:00</div>
+        <video id="sync-video" controls preload="auto">
+            <source src="./smjorRennsli1.mp4" type="video/mp4">
+        </video>
+    </div>
     
     <p id="status" style="margin-top:20px; color: #ffab00;"></p>
 </div>
@@ -198,8 +203,23 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
         }
     }
 
+    function formatTimecode(seconds) {
+        const safeSeconds = Math.max(0, Math.floor(seconds || 0));
+        const hours = Math.floor(safeSeconds / 3600);
+        const minutes = Math.floor((safeSeconds % 3600) / 60);
+        const secs = safeSeconds % 60;
+        return String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+    }
+
+    function updateTimecode() {
+        const timecodeEl = document.getElementById('timecode');
+        timecodeEl.textContent = formatTimecode(video.currentTime);
+    }
+
     // Load video list on page load
     window.addEventListener('load', loadVideoList);
+    video.addEventListener('timeupdate', updateTimecode);
+    video.addEventListener('loadedmetadata', updateTimecode);
 
     function measureLatency() {
         if (!conn || !conn.open) return;
