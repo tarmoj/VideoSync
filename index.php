@@ -51,7 +51,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
 <body>
 
 <div class="container">
-    <h2>P2P Video Sync 0.3.0</h2>
+    <h2>P2P Video Sync 0.4.0</h2>
     
     <div id="setup-ui">
         <button class="btn btn-host" onclick="startAsHost()">Be the Host (Show QR)</button>
@@ -100,6 +100,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
     let peer = null; 
     let conn = null;
     let latency = 0;
+    const videoStorageKey = 'videosync-last-video';
 
     function hideQR() {
         document.getElementById('qrcode-container').classList.add('hidden');
@@ -112,6 +113,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
     }
 
     // --- VIDEO SELECTION ---
+    function getStoredVideo() {
+        return localStorage.getItem(videoStorageKey);
+    }
+
+    function setStoredVideo(videoFile) {
+        localStorage.setItem(videoStorageKey, videoFile);
+    }
+
     function loadVideoList() {
         console.log('Loading video list...');
         fetch('?action=get_videos')  // Changed to use query parameter
@@ -140,13 +149,19 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
                     const option = document.createElement('option');
                     option.value = videoFile;
                     option.textContent = videoFile;
-                    
-                    if (video.querySelector('source').src.endsWith(videoFile)) {
-                        option.selected = true;
-                    }
-                    
                     select.appendChild(option);
                 });
+
+                const storedVideo = getStoredVideo();
+                if (storedVideo && videos.includes(storedVideo)) {
+                    select.value = storedVideo;
+
+                    const currentSource = video.querySelector('source');
+                    if (!currentSource.src.endsWith(storedVideo)) {
+                        currentSource.src = './' + storedVideo;
+                        video.load();
+                    }
+                }
                 console.log('Video list loaded successfully');
             })
             .catch(err => {
@@ -160,6 +175,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
         const selectedVideo = document.getElementById('video-select').value;
         const currentTime = video.currentTime;
         const wasPlaying = !video.paused;
+
+        setStoredVideo(selectedVideo);
         
         // Update video source
         video.querySelector('source').src = './' + selectedVideo;
@@ -267,6 +284,8 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
                 // Update video source when peer changes video
                 const select = document.getElementById('video-select');
                 select.value = data.videoFile;
+
+                setStoredVideo(data.videoFile);
                 
                 video.querySelector('source').src = './' + data.videoFile;
                 video.load();
