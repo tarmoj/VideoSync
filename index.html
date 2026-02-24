@@ -19,12 +19,13 @@
         .btn-host { background: #00c853; color: white; }
         .btn-join { background: #2979ff; color: white; }
         .hidden { display: none; }
+        .video-selector { padding: 10px; font-size: 16px; border-radius: 8px; background: #2a2a2a; color: #eee; border: 1px solid #555; margin: 10px 0; width: 100%; max-width: 400px; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>P2P Video Sync 0.2.1</h2>
+    <h2>P2P Video Sync 0.3.0</h2>
     
     <div id="setup-ui">
         <button class="btn btn-host" onclick="startAsHost()">Be the Host (Show QR)</button>
@@ -43,6 +44,13 @@
     <div id="client-ui" class="hidden">
         <div id="reader"></div>
         <p>Pointing your camera at the Host's QR code...</p>
+    </div>
+
+    <div style="margin: 20px 0;">
+        <label for="video-select" style="display: block; margin-bottom: 5px;">Select Video:</label>
+        <select id="video-select" class="video-selector" onchange="changeVideo()">
+            <option>Loading videos...</option>
+        </select>
     </div>
 
     <video id="sync-video" controls preload="auto">
@@ -68,6 +76,87 @@
         document.getElementById('qrcode-container').classList.remove('hidden');
         document.querySelector('.qr-toggle-link').classList.add('hidden');
     }
+
+    // --- VIDEO SELECTION ---
+    function loadVideoList() {
+        console.log('Loading video list from videos.php...');
+        fetch('videos.php')
+            .then(response => {
+                //console.log('Response status:', response.status);
+                //console.log('Response headers:', response.headers.get('content-type'));
+                
+                // Get the raw text first to see what we're receiving
+                return response.text().then(text => {
+                    //console.log('Raw response:', text);
+                    
+                    // Try to parse it as JSON
+                    try {
+                        return JSON.parse(text);
+                    } catch (e) {
+                        console.error('JSON parse error:', e);
+                        console.error('Response text that failed to parse:', text);
+                        throw new Error('Invalid JSON response: ' + text.substring(0, 100));
+                    }
+                });
+            })
+            .then(videos => {
+                console.log('Parsed videos:', videos);
+                const select = document.getElementById('video-select');
+                select.innerHTML = '';
+                
+                if (!Array.isArray(videos) || videos.length === 0) {
+                    select.innerHTML = '<option>No videos found</option>';
+                    return;
+                }
+                
+                videos.forEach(videoFile => {
+                    const option = document.createElement('option');
+                    option.value = videoFile;
+                    option.textContent = videoFile;
+                    
+                    // Select current video if it matches
+                    if (video.querySelector('source').src.endsWith(videoFile)) {
+                        option.selected = true;
+                    }
+                    
+                    select.appendChild(option);
+                });
+                console.log('Video list loaded successfully');
+            })
+            .catch(err => {
+                console.error('Failed to load videos:', err);
+                status.innerText = 'Error: ' + err.message;
+                document.getElementById('video-select').innerHTML = '<option>Error loading videos</option>';
+            });
+    }
+
+    function changeVideo() {
+        const selectedVideo = document.getElementById('video-select').value;
+        const currentTime = video.currentTime;
+        const wasPlaying = !video.paused;
+        
+        // Update video source
+        video.querySelector('source').src = './' + selectedVideo;
+        video.load();
+        video.currentTime = currentTime;
+        
+        if (wasPlaying) {
+            video.play();
+        }
+        
+        // Notify peer about video change
+        if (conn && conn.open) {
+            conn.send({ 
+                type: 'VIDEO_CHANGE', 
+                videoFile: selectedVideo,
+                time: currentTime,
+                playing: wasPlaying
+            });
+        }
+    }
+
+    // Load video list on page load
+    window.addEventListener('load', loadVideoList);
 
     function measureLatency() {
         if (!conn || !conn.open) return;
@@ -147,6 +236,19 @@
                 }
 
                 data.playing ? video.play() : video.pause();
+            }
+            else if (data.type === 'VIDEO_CHANGE') {
+                // Update video source when peer changes video
+                const select = document.getElementById('video-select');
+                select.value = data.videoFile;
+                
+                video.querySelector('source').src = './' + data.videoFile;
+                video.load();
+                video.currentTime = data.time;
+                
+                if (data.playing) {
+                    video.play();
+                }
             }
         });
 

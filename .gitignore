@@ -3,4 +3,7 @@
 .idea/*
 
 *.mp4
-
+*.mov
+*.MOV
+*.avi
+*.AVI
