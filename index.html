@@ -23,7 +23,7 @@
 <body>
 
 <div class="container">
-    <h2>P2P Video Sync</h2>
+    <h2>P2P Video Sync 0.2.0</h2>
     
     <div id="setup-ui">
         <button class="btn btn-host" onclick="startAsHost()">Be the Host (Show QR)</button>
@@ -51,8 +51,17 @@
 <script>
     const video = document.getElementById('sync-video');
     const status = document.getElementById('status');
-    let peer = null; //new Peer();
+    let peer = null; 
     let conn = null;
+    let latency = 0;
+
+    function measureLatency() {
+        if (!conn || !conn.open) return;
+        
+        const start = performance.now();
+        // Send a ping to the other peer
+        conn.send({ type: 'PING', sentAt: start });
+    }
 
     // --- HOST LOGIC ---
     function startAsHost() {
@@ -99,24 +108,57 @@
     // --- SYNC CORE ---
     function initSync() {
         conn.on('data', (data) => {
-            if (data.type === 'SYNC') {
-                // If drift > 0.5s, correct it
-                if (Math.abs(video.currentTime - data.time) > 0.5) {
-                    video.currentTime = data.time;
+            if (data.type === 'PING') {
+                conn.send({ type: 'PONG', sentAt: data.sentAt });
+            } 
+            else if (data.type === 'PONG') {
+                const end = performance.now();
+                latency = (end - data.sentAt) / 2 / 1000; // Convert to seconds
+                console.log(`Measured Latency: ${latency.toFixed(3)}s`);
+            } 
+            else if (data.type === 'SYNC') {
+                // Apply the latency compensation!
+                const adjustedTargetTime = data.time + latency;
+                const diff = Math.abs(video.currentTime - adjustedTargetTime);
+
+                if (diff > 0.5) {
+                    // Large drift: Hard jump
+                    video.currentTime = adjustedTargetTime;
+                } else if (diff > 0.05) {
+                    // Tiny drift: Slightly speed up/slow down to catch up (transparent to user)
+                    video.playbackRate = (video.currentTime < adjustedTargetTime) ? 1.05 : 0.95;
+                } else {
+                    video.playbackRate = 1.0;
                 }
+
                 data.playing ? video.play() : video.pause();
             }
         });
 
-        const sync = () => {
+        // const sync = () => {
+        //     if (conn && conn.open) {
+        //         conn.send({ type: 'SYNC', time: video.currentTime, playing: !video.paused });
+        //     }
+        // };
+        
+        // 2. Start heartbeat to keep latency data fresh
+        setInterval(measureLatency, 3000);
+
+        // 3. Broadcast changes
+        const broadcast = () => {
             if (conn && conn.open) {
-                conn.send({ type: 'SYNC', time: video.currentTime, playing: !video.paused });
+                conn.send({ 
+                    type: 'SYNC', 
+                    time: video.currentTime, 
+                    playing: !video.paused 
+                });
             }
         };
 
-        video.onplay = sync;
-        video.onpause = sync;
-        video.onseeking = sync;
+        video.onplay = broadcast;
+        video.onpause = broadcast;
+        video.onseeking = broadcast;
+    
     }
 </script>
 </body>
