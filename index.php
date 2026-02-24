@@ -53,7 +53,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
 <body>
 
 <div class="container">
-    <h2>P2P Video Sync 0.4.0</h2>
+    <h2>P2P Video Sync 0.5.1</h2>
     
     <div id="setup-ui">
         <button class="btn btn-host" onclick="startAsHost()">Be the Host (Show QR)</button>
@@ -239,6 +239,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
         });
     }
 
+    function sendToAllExcept(excludedConnection, message) {
+        connections.forEach(connection => {
+            if (connection !== excludedConnection && connection && connection.open) {
+                connection.send(message);
+            }
+        });
+    }
+
     function sendMessage(message) {
         if (isHost) {
             sendToAll(message);
@@ -250,21 +258,27 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
     function addConnection(connection) {
         connections.push(connection);
         setupConnectionHandlers(connection);
+        const sendInitialState = () => {
+            const currentSource = video.querySelector('source');
+            const currentFile = currentSource.src.split('/').pop();
+            connection.send({
+                type: 'VIDEO_CHANGE',
+                videoFile: currentFile,
+                time: video.currentTime,
+                playing: !video.paused
+            });
+            connection.send({
+                type: 'SYNC',
+                time: video.currentTime,
+                playing: !video.paused
+            });
+        };
 
-        // Sync new client to current state
-        const currentSource = video.querySelector('source');
-        const currentFile = currentSource.src.split('/').pop();
-        connection.send({
-            type: 'VIDEO_CHANGE',
-            videoFile: currentFile,
-            time: video.currentTime,
-            playing: !video.paused
-        });
-        connection.send({
-            type: 'SYNC',
-            time: video.currentTime,
-            playing: !video.paused
-        });
+        if (connection.open) {
+            sendInitialState();
+        } else {
+            connection.on('open', sendInitialState);
+        }
     }
 
     function removeConnection(connection) {
@@ -300,7 +314,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
                 data.playing ? video.play() : video.pause();
 
                 if (isHost) {
-                    sendToAll(data);
+                    sendToAllExcept(connection, data);
                 }
                 return;
             }
@@ -319,7 +333,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
                 }
 
                 if (isHost) {
-                    sendToAll(data);
+                    sendToAllExcept(connection, data);
                 }
             }
         });
