@@ -105,6 +105,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
     let peer = null; 
     let conn = null;
     let latency = 0;
+    let connections = [];
+    let isHost = false;
+    let syncInitialized = false;
     const videoStorageKey = 'videosync-last-video';
 
     function hideQR() {
@@ -192,15 +195,13 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
             video.play();
         }
         
-        // Notify peer about video change
-        if (conn && conn.open) {
-            conn.send({ 
-                type: 'VIDEO_CHANGE', 
-                videoFile: selectedVideo,
-                time: currentTime,
-                playing: wasPlaying
-            });
-        }
+        // Notify peers about video change
+        sendMessage({ 
+            type: 'VIDEO_CHANGE', 
+            videoFile: selectedVideo,
+            time: currentTime,
+            playing: wasPlaying
+        });
     }
 
     function formatTimecode(seconds) {
@@ -222,6 +223,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
     video.addEventListener('loadedmetadata', updateTimecode);
 
     function measureLatency() {
+        if (isHost) return;
         if (!conn || !conn.open) return;
         
         const start = performance.now();
@@ -229,10 +231,113 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
         conn.send({ type: 'PING', sentAt: start });
     }
 
+    function sendToAll(message) {
+        connections.forEach(connection => {
+            if (connection && connection.open) {
+                connection.send(message);
+            }
+        });
+    }
+
+    function sendMessage(message) {
+        if (isHost) {
+            sendToAll(message);
+        } else if (conn && conn.open) {
+            conn.send(message);
+        }
+    }
+
+    function addConnection(connection) {
+        connections.push(connection);
+        setupConnectionHandlers(connection);
+
+        // Sync new client to current state
+        const currentSource = video.querySelector('source');
+        const currentFile = currentSource.src.split('/').pop();
+        connection.send({
+            type: 'VIDEO_CHANGE',
+            videoFile: currentFile,
+            time: video.currentTime,
+            playing: !video.paused
+        });
+        connection.send({
+            type: 'SYNC',
+            time: video.currentTime,
+            playing: !video.paused
+        });
+    }
+
+    function removeConnection(connection) {
+        connections = connections.filter(item => item !== connection);
+    }
+
+    function setupConnectionHandlers(connection) {
+        connection.on('data', (data) => {
+            if (data.type === 'PING') {
+                connection.send({ type: 'PONG', sentAt: data.sentAt });
+                return;
+            }
+
+            if (data.type === 'PONG') {
+                const end = performance.now();
+                latency = (end - data.sentAt) / 2 / 1000; // Convert to seconds
+                console.log(`Measured Latency: ${latency.toFixed(3)}s`);
+                return;
+            }
+
+            if (data.type === 'SYNC') {
+                const adjustedTargetTime = data.time + latency;
+                const diff = Math.abs(video.currentTime - adjustedTargetTime);
+
+                if (diff > 0.5) {
+                    video.currentTime = adjustedTargetTime;
+                } else if (diff > 0.05) {
+                    video.playbackRate = (video.currentTime < adjustedTargetTime) ? 1.05 : 0.95;
+                } else {
+                    video.playbackRate = 1.0;
+                }
+
+                data.playing ? video.play() : video.pause();
+
+                if (isHost) {
+                    sendToAll(data);
+                }
+                return;
+            }
+
+            if (data.type === 'VIDEO_CHANGE') {
+                const select = document.getElementById('video-select');
+                select.value = data.videoFile;
+                setStoredVideo(data.videoFile);
+
+                video.querySelector('source').src = './' + data.videoFile;
+                video.load();
+                video.currentTime = data.time;
+
+                if (data.playing) {
+                    video.play();
+                }
+
+                if (isHost) {
+                    sendToAll(data);
+                }
+            }
+        });
+
+        connection.on('close', () => {
+            removeConnection(connection);
+        });
+
+        connection.on('error', () => {
+            removeConnection(connection);
+        });
+    }
+
     // --- HOST LOGIC ---
     function startAsHost() {
         document.getElementById('setup-ui').classList.add('hidden');
         document.getElementById('host-ui').classList.remove('hidden');
+        isHost = true;
         peer = new Peer();
 
         peer.on('open', (id) => {
@@ -242,10 +347,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
         });
 
         peer.on('connection', (connection) => {
-            conn = connection;
+            addConnection(connection);
             initSync();
-            status.innerText = "Connected with Client";
-
+            status.innerText = "Clients connected: " + connections.length;
         });
     }
 
@@ -253,7 +357,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
     function startAsClient() {
         document.getElementById('setup-ui').classList.add('hidden');
         document.getElementById('client-ui').classList.remove('hidden');
-
+        isHost = false;
         peer = new Peer();
 
         const html5QrCode = new Html5Qrcode("reader");
@@ -266,6 +370,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
                 document.getElementById('client-ui').classList.add('hidden');
                 console.log("Decoded QR:", decodedText);
                 conn = peer.connect(decodedText);
+                setupConnectionHandlers(conn);
                 initSync();
                 status.innerText = "Connected to Host!";
             }
@@ -274,67 +379,19 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
 
     // --- SYNC CORE ---
     function initSync() {
-        conn.on('data', (data) => {
-            if (data.type === 'PING') {
-                conn.send({ type: 'PONG', sentAt: data.sentAt });
-            } 
-            else if (data.type === 'PONG') {
-                const end = performance.now();
-                latency = (end - data.sentAt) / 2 / 1000; // Convert to seconds
-                console.log(`Measured Latency: ${latency.toFixed(3)}s`);
-            } 
-            else if (data.type === 'SYNC') {
-                // Apply the latency compensation!
-                const adjustedTargetTime = data.time + latency;
-                const diff = Math.abs(video.currentTime - adjustedTargetTime);
-
-                if (diff > 0.5) {
-                    // Large drift: Hard jump
-                    video.currentTime = adjustedTargetTime;
-                } else if (diff > 0.05) {
-                    // Tiny drift: Slightly speed up/slow down to catch up (transparent to user)
-                    video.playbackRate = (video.currentTime < adjustedTargetTime) ? 1.05 : 0.95;
-                } else {
-                    video.playbackRate = 1.0;
-                }
-
-                data.playing ? video.play() : video.pause();
-            }
-            else if (data.type === 'VIDEO_CHANGE') {
-                // Update video source when peer changes video
-                const select = document.getElementById('video-select');
-                select.value = data.videoFile;
-
-                setStoredVideo(data.videoFile);
-                
-                video.querySelector('source').src = './' + data.videoFile;
-                video.load();
-                video.currentTime = data.time;
-                
-                if (data.playing) {
-                    video.play();
-                }
-            }
-        });
-
-        // const sync = () => {
-        //     if (conn && conn.open) {
-        //         conn.send({ type: 'SYNC', time: video.currentTime, playing: !video.paused });
-        //     }
-        // };
+        if (syncInitialized) return;
+        syncInitialized = true;
         
         // 2. Start heartbeat to keep latency data fresh
         setInterval(measureLatency, 3000);
 
         // 3. Broadcast changes
         const broadcast = () => {
-            if (conn && conn.open) {
-                conn.send({ 
-                    type: 'SYNC', 
-                    time: video.currentTime, 
-                    playing: !video.paused 
-                });
-            }
+            sendMessage({ 
+                type: 'SYNC', 
+                time: video.currentTime, 
+                playing: !video.paused 
+            });
         };
 
         video.onplay = broadcast;
