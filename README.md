@@ -10,6 +10,8 @@ Open the page. On one of the devices select the "Host mode", on others "Join the
 
 The devices must be in one network with internet access.
 
+[Demo](https://tarmo.uuu.ee/videosync/)
+
 License: GNU General Public License (free to use and change, must be kept open source).
 
 If you find it useful,  feel free to [buy me a coffee](https://ko-fi.com/tarmojohannes) 😊! 
