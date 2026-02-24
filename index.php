@@ -1,3 +1,24 @@
+<?php
+// Get video files
+$videoExtensions = ['mp4', 'avi', 'mov', 'mkv', 'flv'];
+$files = scandir(__DIR__);
+$videoFiles = [];
+
+foreach ($files as $file) {
+    $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+    if (in_array($ext, $videoExtensions)) {
+        $videoFiles[] = $file;
+    }
+}
+sort($videoFiles);
+
+// Handle AJAX request for video list
+if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
+    header('Content-Type: application/json');
+    echo json_encode($videoFiles);
+    exit;
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,7 +30,7 @@
     <script src="https://unpkg.com/html5-qrcode"></script> 
     
     <style>
-        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 20px; }
+        body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 20px; min-height: 100vh; display: flex; flex-direction: column; }
         .container { max-width: 600px; margin: auto; }
         #qrcode { background: white; padding: 10px; display: inline-block; margin: 20px; border-radius: 8px; cursor: pointer; }
         #reader { width: 100%; max-width: 400px; margin: auto; border: 1px solid #555; }
@@ -20,6 +41,11 @@
         .btn-join { background: #2979ff; color: white; }
         .hidden { display: none; }
         .video-selector { padding: 10px; font-size: 16px; border-radius: 8px; background: #2a2a2a; color: #eee; border: 1px solid #555; margin: 10px 0; width: 100%; max-width: 400px; cursor: pointer; }
+        .footer { margin-top: auto; padding-top: 20px; font-size: 14px; color: #bbb; display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; }
+        .footer a { color: #bbb; text-decoration: none; }
+        .footer a:hover { text-decoration: underline; }
+        .kofi-link { display: inline-flex; align-items: center; gap: 6px; }
+        .kofi-logo { height: 16px; width: auto; vertical-align: middle; }
     </style>
 </head>
 <body>
@@ -35,7 +61,7 @@
     <div id="host-ui" class="hidden">
         <a class="qr-toggle-link hidden" onclick="toggleQR()">Show QR</a>
         <div id="qrcode-container">
-            <p>Scan this with the other tablet:</p>
+            <p>Scan this with the other tablet (click to close):</p>
             <div id="qrcode" onclick="hideQR()"></div>
             <p>ID: <span id="my-id">...</span></p>
         </div>
@@ -43,7 +69,7 @@
 
     <div id="client-ui" class="hidden">
         <div id="reader"></div>
-        <p>Pointing your camera at the Host's QR code...</p>
+        <p>Pointing your camera at the Host QR code...</p>
     </div>
 
     <div style="margin: 20px 0;">
@@ -59,6 +85,14 @@
     
     <p id="status" style="margin-top:20px; color: #ffab00;"></p>
 </div>
+
+<footer class="footer">
+    <span>Developed by <a href="https://tarmo.uuu.ee/software/" target="_blank" rel="noopener">Tarmo Johannes</a></span>
+    <a class="kofi-link" href="https://ko-fi.com/tarmojohannes" target="_blank" rel="noopener">
+        <!-- <span>Buy me a coffee</span> -->
+        <img class="kofi-logo" src="./bmc-logo-for-dark.svg" alt="Buy me a coffee">
+    </a>
+</footer>
 
 <script>
     const video = document.getElementById('sync-video');
@@ -79,17 +113,10 @@
 
     // --- VIDEO SELECTION ---
     function loadVideoList() {
-        console.log('Loading video list from videos.php...');
-        fetch('videos.php')
+        console.log('Loading video list...');
+        fetch('?action=get_videos')  // Changed to use query parameter
             .then(response => {
-                //console.log('Response status:', response.status);
-                //console.log('Response headers:', response.headers.get('content-type'));
-                
-                // Get the raw text first to see what we're receiving
                 return response.text().then(text => {
-                    //console.log('Raw response:', text);
-                    
-                    // Try to parse it as JSON
                     try {
                         return JSON.parse(text);
                     } catch (e) {
@@ -114,7 +141,6 @@
                     option.value = videoFile;
                     option.textContent = videoFile;
                     
-                    // Select current video if it matches
                     if (video.querySelector('source').src.endsWith(videoFile)) {
                         option.selected = true;
                     }
@@ -181,7 +207,7 @@
         peer.on('connection', (connection) => {
             conn = connection;
             initSync();
-            status.innerText = "Connected with Client...";
+            status.innerText = "Connected with Client";
 
         });
     }
