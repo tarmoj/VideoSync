@@ -11,10 +11,11 @@
     <style>
         body { font-family: 'Segoe UI', sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 20px; }
         .container { max-width: 600px; margin: auto; }
-        #qrcode { background: white; padding: 10px; display: inline-block; margin: 20px; border-radius: 8px; }
+        #qrcode { background: white; padding: 10px; display: inline-block; margin: 20px; border-radius: 8px; cursor: pointer; }
         #reader { width: 100%; max-width: 400px; margin: auto; border: 1px solid #555; }
         video { width: 100%; border-radius: 12px; margin-top: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
         .btn { padding: 12px 24px; font-size: 16px; border: none; border-radius: 25px; cursor: pointer; margin: 5px; transition: 0.3s; }
+        .qr-toggle-link { color: #00c853; cursor: pointer; text-decoration: underline; font-size: 16px; }
         .btn-host { background: #00c853; color: white; }
         .btn-join { background: #2979ff; color: white; }
         .hidden { display: none; }
@@ -23,7 +24,7 @@
 <body>
 
 <div class="container">
-    <h2>P2P Video Sync 0.2.0</h2>
+    <h2>P2P Video Sync 0.2.1</h2>
     
     <div id="setup-ui">
         <button class="btn btn-host" onclick="startAsHost()">Be the Host (Show QR)</button>
@@ -31,9 +32,12 @@
     </div>
 
     <div id="host-ui" class="hidden">
-        <p>Scan this with the other tablet:</p>
-        <div id="qrcode"></div>
-        <p>ID: <span id="my-id">...</span></p>
+        <a class="qr-toggle-link hidden" onclick="toggleQR()">Show QR</a>
+        <div id="qrcode-container">
+            <p>Scan this with the other tablet:</p>
+            <div id="qrcode" onclick="hideQR()"></div>
+            <p>ID: <span id="my-id">...</span></p>
+        </div>
     </div>
 
     <div id="client-ui" class="hidden">
@@ -54,6 +58,16 @@
     let peer = null; 
     let conn = null;
     let latency = 0;
+
+    function hideQR() {
+        document.getElementById('qrcode-container').classList.add('hidden');
+        document.querySelector('.qr-toggle-link').classList.remove('hidden');
+    }
+
+    function toggleQR() {
+        document.getElementById('qrcode-container').classList.remove('hidden');
+        document.querySelector('.qr-toggle-link').classList.add('hidden');
+    }
 
     function measureLatency() {
         if (!conn || !conn.open) return;
@@ -78,7 +92,8 @@
         peer.on('connection', (connection) => {
             conn = connection;
             initSync();
-            status.innerText = "Syncing with Client...";
+            status.innerText = "Connected with Client...";
+
         });
     }
 
