@@ -53,7 +53,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
 <body>
 
 <div class="container">
-    <h2>P2P Video Sync 0.5.1</h2>
+    <h2>P2P Video Sync 0.5.3</h2>
     
     <div id="setup-ui">
         <button class="btn btn-host" onclick="startAsHost()">Be the Host (Show QR)</button>
@@ -83,9 +83,13 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
 
     <div class="video-wrap">
         <div id="timecode" class="timecode">00:00:00</div>
-        <video id="sync-video" controls preload="auto">
+        <video id="sync-video" preload="auto" controls>
             <source src="./smjorRennsli1.mp4" type="video/mp4">
         </video>
+        <div style="margin-top: 10px;">
+            <button class="btn btn-host" onclick="explicitPlay()">▶ Play</button>
+            <button class="btn btn-join" onclick="explicitPause()">⏸ Pause</button>
+        </div>
     </div>
     
     <p id="status" style="margin-top:20px; color: #ffab00;"></p>
@@ -212,6 +216,24 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
         return String(hours).padStart(2, '0') + ':' + String(minutes).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
     }
 
+    function explicitPlay() {
+        video.play();
+        sendMessage({ 
+            type: 'SYNC', 
+            time: video.currentTime, 
+            playing: true 
+        });
+    }
+
+    function explicitPause() {
+        video.pause();
+        sendMessage({ 
+            type: 'SYNC', 
+            time: video.currentTime, 
+            playing: false 
+        });
+    }
+
     function updateTimecode() {
         const timecodeEl = document.getElementById('timecode');
         timecodeEl.textContent = formatTimecode(video.currentTime);
@@ -294,7 +316,9 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
 
             if (data.type === 'PONG') {
                 const end = performance.now();
-                latency = (end - data.sentAt) / 2 / 1000; // Convert to seconds
+                // TEST: latency out!
+                //latency = (end - data.sentAt) / 2 / 1000; // Convert to seconds
+                latency = 0;
                 console.log(`Measured Latency: ${latency.toFixed(3)}s`);
                 return;
             }
@@ -399,18 +423,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
         // 2. Start heartbeat to keep latency data fresh
         setInterval(measureLatency, 3000);
 
-        // 3. Broadcast changes
-        const broadcast = () => {
+        // 3. Only sync on seek (play/pause handled by explicit buttons)
+        video.onseeking = () => {
             sendMessage({ 
                 type: 'SYNC', 
                 time: video.currentTime, 
                 playing: !video.paused 
             });
         };
-
-        video.onplay = broadcast;
-        video.onpause = broadcast;
-        video.onseeking = broadcast;
     
     }
 </script>
