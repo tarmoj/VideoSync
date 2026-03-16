@@ -53,7 +53,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
 <body>
 
 <div class="container">
-    <h2>P2P Video Sync 0.5.3</h2>
+    <h2>P2P Video Sync 0.5.4</h2>
     
     <div id="setup-ui">
         <button class="btn btn-host" onclick="startAsHost()">Be the Host (Show QR)</button>
@@ -420,17 +420,20 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
         if (syncInitialized) return;
         syncInitialized = true;
         
-        // 2. Start heartbeat to keep latency data fresh
         setInterval(measureLatency, 3000);
 
-        // 3. Only sync on seek (play/pause handled by explicit buttons)
-        video.onseeking = () => {
+        // Broadcast all changes - play, pause, and seek
+        const broadcast = () => {
             sendMessage({ 
                 type: 'SYNC', 
                 time: video.currentTime, 
                 playing: !video.paused 
             });
         };
+
+        video.onplay = broadcast;
+        video.onpause = broadcast;
+        video.onseeking = broadcast;
     
     }
 </script>
