@@ -53,7 +53,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
 <body>
 
 <div class="container">
-    <h2>P2P Video Sync 0.5.4</h2>
+    <h2>P2P Video Sync 0.5.5</h2>
     
     <div id="setup-ui">
         <button class="btn btn-host" onclick="startAsHost()">Be the Host (Show QR)</button>
