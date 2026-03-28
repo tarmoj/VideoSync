@@ -79,6 +79,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
         <select id="video-select" class="video-selector" onchange="changeVideo()">
             <option>Loading videos...</option>
         </select>
+        <label style="display: inline-flex; align-items: center; gap: 8px; margin-top: 10px;">
+            <input type="checkbox" id="allow-separate-videos">
+            Allow separate videos
+        </label>
     </div>
 
     <div class="video-wrap">
@@ -113,6 +117,10 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
     let isHost = false;
     let syncInitialized = false;
     const videoStorageKey = 'videosync-last-video';
+
+    function allowSeparateVideos() {
+        return document.getElementById('allow-separate-videos').checked;
+    }
 
     function hideQR() {
         document.getElementById('qrcode-container').classList.add('hidden');
@@ -199,13 +207,15 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
             video.play();
         }
         
-        // Notify peers about video change
-        sendMessage({ 
-            type: 'VIDEO_CHANGE', 
-            videoFile: selectedVideo,
-            time: currentTime,
-            playing: wasPlaying
-        });
+        // Notify peers about video change unless separate videos are allowed.
+        if (!allowSeparateVideos()) {
+            sendMessage({ 
+                type: 'VIDEO_CHANGE', 
+                videoFile: selectedVideo,
+                time: currentTime,
+                playing: wasPlaying
+            });
+        }
     }
 
     function formatTimecode(seconds) {
@@ -283,12 +293,14 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
         const sendInitialState = () => {
             const currentSource = video.querySelector('source');
             const currentFile = currentSource.src.split('/').pop();
-            connection.send({
-                type: 'VIDEO_CHANGE',
-                videoFile: currentFile,
-                time: video.currentTime,
-                playing: !video.paused
-            });
+            if (!allowSeparateVideos()) {
+                connection.send({
+                    type: 'VIDEO_CHANGE',
+                    videoFile: currentFile,
+                    time: video.currentTime,
+                    playing: !video.paused
+                });
+            }
             connection.send({
                 type: 'SYNC',
                 time: video.currentTime,
@@ -344,6 +356,13 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_videos') {
             }
 
             if (data.type === 'VIDEO_CHANGE') {
+                if (allowSeparateVideos()) {
+                    if (isHost) {
+                        sendToAllExcept(connection, data);
+                    }
+                    return;
+                }
+
                 const select = document.getElementById('video-select');
                 select.value = data.videoFile;
                 setStoredVideo(data.videoFile);
