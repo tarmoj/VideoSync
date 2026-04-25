@@ -143,16 +143,19 @@ ApplicationWindow {
 
         }
 
-        Item {
+        Rectangle {
             id: videoArea
             Layout.fillHeight: true
             Layout.fillWidth: true
+            color: "transparent"
+            border.color: Material.frameColor
+            border.width: 2
 
             Video {
                 id: videoPlayer
                 anchors.fill: parent
                 fillMode: VideoOutput.PreserveAspectFit
-                source: "" // Set the video source here
+                source: "qrc:/test.mp4" // Set the video source here
             }
 
 
@@ -167,7 +170,7 @@ ApplicationWindow {
                 id: playButton
                 text: qsTr("Play")
                 onClicked: {
-                    // Implement play functionality
+                    videoPlayer.play()
                 }
             }
 
@@ -175,19 +178,17 @@ ApplicationWindow {
                 id: pauseButton
                 text: qsTr("Pause")
                 onClicked: {
-                    // Implement pause functionality
+                    videoPlayer.pause()
                 }
             }
 
             Slider {
                 id: seekSlider
-                //Layout.preferredWidth: parent.width/3
                 from: 0
                 to: 1
-                value: 0
-                // position is 0..1
+                //value: videoPlayer.position / videoPlayer.duration
                 onValueChanged: {
-                    // Implement seek functionality
+                    videoPlayer.position = value * videoPlayer.duration
                 }
             }
 

@@ -2,5 +2,6 @@
     <qresource prefix="/">
         <file>images/menu.svg</file>
         <file>images/info.svg</file>
+        <file>test.mp4</file>
     </qresource>
 </RCC>
