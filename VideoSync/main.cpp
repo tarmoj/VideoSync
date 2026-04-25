@@ -7,6 +7,7 @@
 #include <QUrl>
 
 #include "syncmanager.h"
+#include "filehelper.h"
 
 static QUrl resolveTestVideoUrl()
 {
@@ -45,8 +46,10 @@ int main(int argc, char *argv[])
 
     QQmlApplicationEngine engine;
     SyncManager syncManager;
+    FileHelper fileHelper;
     engine.rootContext()->setContextProperty("testVideoSource", resolveTestVideoUrl());
     engine.rootContext()->setContextProperty("syncManager", &syncManager);
+    engine.rootContext()->setContextProperty("fileHelper", &fileHelper);
     QObject::connect(
         &engine,
         &QQmlApplicationEngine::objectCreationFailed,

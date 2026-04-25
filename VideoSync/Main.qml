@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtMultimedia
+import QtQuick.Dialogs
 
 
 ApplicationWindow {
@@ -15,6 +16,8 @@ ApplicationWindow {
     property string role: "guest" // "host" or "guest"
     property bool applyingRemoteUpdate: false
     property bool syncReady: false
+    property url currentVideoSource: testVideoSource
+    property string currentVideoName: (fileHelper ? fileHelper.videoFileName(currentVideoSource) : "")
     property color backgroundEndColor: role==="host" ?  "darkgreen" : "darkblue"
 
     function formatVideoTime(ms) {
@@ -29,8 +32,10 @@ ApplicationWindow {
     }
 
     Component.onCompleted: {
-        syncManager.role = role
-        syncManager.updateLocalIp()
+        if (syncManager) {
+            syncManager.role = role
+            syncManager.updateLocalIp()
+        }
         syncReady = true
     }
 
@@ -100,8 +105,26 @@ ApplicationWindow {
           visible: true
 
           Button {
+              text: qsTr("Load Video")
+              onClicked: fileDialog.open()
+          }
+
+          Button {
+              text: qsTr("Test Video")
+              onClicked: {
+                  videoPlayer.stop()
+                  currentVideoSource = testVideoSource
+                  drawer.close()
+              }
+          }
+
+          Button {
               text: qsTr("Update IP")
-              onClicked: syncManager.updateLocalIp()
+              onClicked: {
+                  if (syncManager) {
+                      syncManager.updateLocalIp()
+                  }
+              }
           }
 
           Label {
@@ -113,9 +136,11 @@ ApplicationWindow {
               from: 1024
               to: 65535
               editable: true
-              value: syncManager.wsPort
+              value: syncManager ? syncManager.wsPort : 9870
               onValueModified: {
-                  syncManager.wsPort = value
+                  if (syncManager) {
+                      syncManager.wsPort = value
+                  }
               }
           }
 
@@ -128,16 +153,22 @@ ApplicationWindow {
               id: hostIpField
               visible: role === "guest"
               placeholderText: qsTr("192.168.1.100")
-              text: syncManager.hostIp
+              text: syncManager ? syncManager.hostIp : ""
               onEditingFinished: {
-                  syncManager.hostIp = text
+                  if (syncManager) {
+                      syncManager.hostIp = text
+                  }
               }
           }
 
           Button {
               visible: role === "guest"
-              text: syncManager.connected ? qsTr("Disconnect") : qsTr("Connect")
+              text: syncManager && syncManager.connected ? qsTr("Disconnect") : qsTr("Connect")
               onClicked: {
+                  if (!syncManager) {
+                      return
+                  }
+
                   if (syncManager.connected) {
                       syncManager.disconnectFromHost()
                   } else {
@@ -148,7 +179,7 @@ ApplicationWindow {
           }
 
           Label {
-              text: syncManager.connectionStatus
+              text: syncManager ? syncManager.connectionStatus : qsTr("Sync unavailable")
               wrapMode: Text.Wrap
           }
 
@@ -185,27 +216,29 @@ ApplicationWindow {
                 checked: role === "host"
                 onCheckedChanged: {
                     role = checked ? "host" : "guest"
-                    syncManager.role = role
+                    if (syncManager) {
+                        syncManager.role = role
+                    }
                 }
             }
 
             Label {
                 id: connectionLabel
                 text: role === "host"
-                    ? qsTr("Connections: %1").arg(syncManager.connectionCount)
-                    : qsTr("Status: %1").arg(syncManager.connected ? qsTr("Connected") : qsTr("Disconnected"))
+                    ? qsTr("Connections: %1").arg(syncManager ? syncManager.connectionCount : 0)
+                    : qsTr("Status: %1").arg(syncManager && syncManager.connected ? qsTr("Connected") : qsTr("Disconnected"))
             }
 
             Label {
                 id: ipLabel
-                text: qsTr("IP: %1").arg(syncManager.localIp)
+                text: qsTr("IP: %1").arg(syncManager ? syncManager.localIp : "-")
             }
 
             Label {
                 id: videoLabel
-                text: role === "host"
-                    ? qsTr("WS: %1").arg(syncManager.wsPort)
-                    : qsTr("Host: %1:%2").arg(syncManager.hostIp).arg(syncManager.wsPort)
+                text: currentVideoName || qsTr("No video")
+                elide: Text.ElideMiddle
+                Layout.maximumWidth: 150
             }
 
         }
@@ -223,7 +256,7 @@ ApplicationWindow {
                 id: videoPlayer
                 anchors.fill: parent
                 fillMode: VideoOutput.PreserveAspectFit
-                source: testVideoSource
+                source: currentVideoSource
                 property bool isPlaying: playbackState===MediaPlayer.PlayingState
 
                 onPlaybackStateChanged: {
@@ -280,7 +313,7 @@ ApplicationWindow {
                     if (videoPlayer.duration > 0) {
                         const targetPosition = Math.floor(value * videoPlayer.duration)
                         videoPlayer.position = targetPosition
-                        if (syncReady && !applyingRemoteUpdate) {
+                        if (syncManager && syncReady && !applyingRemoteUpdate) {
                             syncManager.sendCommand("seek", targetPosition, videoPlayer.isPlaying)
                         }
                     }
@@ -304,12 +337,29 @@ ApplicationWindow {
         running: role === "host"
         repeat: true
         onTriggered: {
-            syncManager.sendState(videoPlayer.position, videoPlayer.isPlaying)
+            if (syncManager) {
+                syncManager.sendState(videoPlayer.position, videoPlayer.isPlaying)
+            }
+        }
+    }
+
+    FileDialog {
+        id: fileDialog
+        title: qsTr("Select Video")
+        fileMode: FileDialog.OpenFile
+        nameFilters: [qsTr("Video files (*.mp4 *.m4v *.mov *.avi *.mkv *.wmv)"), qsTr("All files (*)")]
+        onAccepted: {
+            const resolved = fileHelper ? fileHelper.resolveVideoUrl(selectedFile) : selectedFile
+            if (resolved.toString().length > 0) {
+                videoPlayer.stop()
+                currentVideoSource = resolved
+                drawer.close()
+            }
         }
     }
 
     Connections {
-        target: syncManager
+        target: syncManager ? syncManager : null
 
         function onRemoteCommandReceived(action, position, playing) {
             applyingRemoteUpdate = true

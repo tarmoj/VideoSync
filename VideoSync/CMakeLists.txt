@@ -15,6 +15,8 @@ qt_add_executable(appVideoSync
     main.cpp
     syncmanager.h
     syncmanager.cpp
+    filehelper.h
+    filehelper.cpp
 )
 
 qt_add_resources(appVideoSync "conf"
