@@ -4,7 +4,7 @@ project(VideoSync VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Multimedia)
+find_package(Qt6 REQUIRED COMPONENTS Quick Multimedia Network WebSockets)
 
 qt_standard_project_setup(REQUIRES 6.8)
 
@@ -13,6 +13,8 @@ set(CMAKE_AUTORCC ON) #NB! without this resources are not included
 
 qt_add_executable(appVideoSync
     main.cpp
+    syncmanager.h
+    syncmanager.cpp
 )
 
 qt_add_resources(appVideoSync "conf"
@@ -40,8 +42,15 @@ set_target_properties(appVideoSync PROPERTIES
 )
 
 target_link_libraries(appVideoSync
-    PRIVATE Qt6::Quick Qt6::Multimedia
+    PRIVATE Qt6::Quick Qt6::Multimedia Qt6::Network Qt6::WebSockets
 )
+
+if(IOS)
+    set_target_properties(appVideoSync PROPERTIES
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/ios/Info.plist
+        XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS ${CMAKE_CURRENT_SOURCE_DIR}/ios/VideoSync.entitlements
+    )
+endif()
 
 include(GNUInstallDirs)
 install(TARGETS appVideoSync

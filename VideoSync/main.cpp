@@ -6,6 +6,8 @@
 #include <QStandardPaths>
 #include <QUrl>
 
+#include "syncmanager.h"
+
 static QUrl resolveTestVideoUrl()
 {
 #if defined(Q_OS_ANDROID) || defined(Q_OS_IOS)
@@ -42,7 +44,9 @@ int main(int argc, char *argv[])
     QGuiApplication app(argc, argv);
 
     QQmlApplicationEngine engine;
+    SyncManager syncManager;
     engine.rootContext()->setContextProperty("testVideoSource", resolveTestVideoUrl());
+    engine.rootContext()->setContextProperty("syncManager", &syncManager);
     QObject::connect(
         &engine,
         &QQmlApplicationEngine::objectCreationFailed,

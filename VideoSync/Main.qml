@@ -8,12 +8,31 @@ ApplicationWindow {
     width: 640
     height: 480
     visible: true
-    property string version: "0.1.0"
+    property string version: "0.2.0"
     title: qsTr("VideoSync") + " " + version
     color: Material.background
 
-    property string role: "" // "host" or "guest"
+    property string role: "guest" // "host" or "guest"
+    property bool applyingRemoteUpdate: false
+    property bool syncReady: false
     property color backgroundEndColor: role==="host" ?  "darkgreen" : "darkblue"
+
+    function formatVideoTime(ms) {
+        const totalSeconds = Math.max(0, Math.floor((ms || 0) / 1000))
+        const hours = Math.floor(totalSeconds / 3600)
+        const minutes = Math.floor((totalSeconds % 3600) / 60)
+        const seconds = totalSeconds % 60
+
+        return String(hours).padStart(2, "0") + ":"
+            + String(minutes).padStart(2, "0") + ":"
+            + String(seconds).padStart(2, "0")
+    }
+
+    Component.onCompleted: {
+        syncManager.role = role
+        syncManager.updateLocalIp()
+        syncReady = true
+    }
 
     background: Rectangle {
        gradient: Gradient {
@@ -76,21 +95,64 @@ ApplicationWindow {
 
        ColumnLayout {
           anchors.fill: parent
+          anchors.margins: 10
           spacing: 5
           visible: true
 
-          ToolButton {
-              text: qsTr("Load")
+          Button {
+              text: qsTr("Update IP")
+              onClicked: syncManager.updateLocalIp()
           }
 
-          // MenuItem {
-          //    text: qsTr("Info")
-          //    icon.source: "qrc:/images/info.svg"
-          //    onTriggered: {
-          //       drawer.close()
-          //       helpDialog.open()
-          //    }
-          // }
+          Label {
+              text: qsTr("WS Port")
+          }
+
+          SpinBox {
+              id: wsPortSpinBox
+              from: 1024
+              to: 65535
+              editable: true
+              value: syncManager.wsPort
+              onValueModified: {
+                  syncManager.wsPort = value
+              }
+          }
+
+          Label {
+              text: qsTr("Host IP")
+              visible: role === "guest"
+          }
+
+          TextField {
+              id: hostIpField
+              visible: role === "guest"
+              placeholderText: qsTr("192.168.1.100")
+              text: syncManager.hostIp
+              onEditingFinished: {
+                  syncManager.hostIp = text
+              }
+          }
+
+          Button {
+              visible: role === "guest"
+              text: syncManager.connected ? qsTr("Disconnect") : qsTr("Connect")
+              onClicked: {
+                  if (syncManager.connected) {
+                      syncManager.disconnectFromHost()
+                  } else {
+                      syncManager.hostIp = hostIpField.text
+                      syncManager.connectToHost()
+                  }
+              }
+          }
+
+          Label {
+              text: syncManager.connectionStatus
+              wrapMode: Text.Wrap
+          }
+
+          Item { Layout.fillWidth: true; Layout.preferredHeight: 1 }
 
 
           Item {Layout.fillHeight: true}
@@ -120,25 +182,30 @@ ApplicationWindow {
             Switch {
                 id: hostGuestSwitch
                 text: qsTr("Host")
-                checked: false
+                checked: role === "host"
                 onCheckedChanged: {
                     role = checked ? "host" : "guest"
+                    syncManager.role = role
                 }
             }
 
             Label {
                 id: connectionLabel
-                text: qsTr("Connections: ")
+                text: role === "host"
+                    ? qsTr("Connections: %1").arg(syncManager.connectionCount)
+                    : qsTr("Status: %1").arg(syncManager.connected ? qsTr("Connected") : qsTr("Disconnected"))
             }
 
             Label {
                 id: ipLabel
-                text: qsTr("IP: ")
+                text: qsTr("IP: %1").arg(syncManager.localIp)
             }
 
             Label {
                 id: videoLabel
-                text: qsTr("Video: ")
+                text: role === "host"
+                    ? qsTr("WS: %1").arg(syncManager.wsPort)
+                    : qsTr("Host: %1:%2").arg(syncManager.hostIp).arg(syncManager.wsPort)
             }
 
         }
@@ -158,6 +225,20 @@ ApplicationWindow {
                 fillMode: VideoOutput.PreserveAspectFit
                 source: testVideoSource
                 property bool isPlaying: playbackState===MediaPlayer.PlayingState
+
+                onPlaybackStateChanged: {
+                    if (!syncReady || applyingRemoteUpdate) {
+                        return
+                    }
+
+                    if (playbackState === MediaPlayer.PlayingState) {
+                        syncManager.sendCommand("play", position, true)
+                    } else if (playbackState === MediaPlayer.PausedState) {
+                        syncManager.sendCommand("pause", position, false)
+                    } else if (playbackState === MediaPlayer.StoppedState) {
+                        syncManager.sendCommand("stop", 0, false)
+                    }
+                }
             }
 
 
@@ -188,6 +269,7 @@ ApplicationWindow {
                 id: seekSlider
                 from: 0
                 to: 1
+                Layout.fillWidth: true
                 Binding {
                     target: seekSlider
                     property: "value"
@@ -196,19 +278,92 @@ ApplicationWindow {
                 }
                 onMoved: {
                     if (videoPlayer.duration > 0) {
-                        videoPlayer.position = value * videoPlayer.duration
+                        const targetPosition = Math.floor(value * videoPlayer.duration)
+                        videoPlayer.position = targetPosition
+                        if (syncReady && !applyingRemoteUpdate) {
+                            syncManager.sendCommand("seek", targetPosition, videoPlayer.isPlaying)
+                        }
                     }
                 }
             }
 
             Label {
                 id: timeLabel
-                text: qsTr("00:00.00")
+                text: formatVideoTime(videoPlayer.position)
             }
 
             Item { Layout.fillWidth: true }
         }
 
 
+    }
+
+    Timer {
+        id: periodicSyncTimer
+        interval: 200
+        running: role === "host"
+        repeat: true
+        onTriggered: {
+            syncManager.sendState(videoPlayer.position, videoPlayer.isPlaying)
+        }
+    }
+
+    Connections {
+        target: syncManager
+
+        function onRemoteCommandReceived(action, position, playing) {
+            applyingRemoteUpdate = true
+
+            if (action === "seek") {
+                videoPlayer.position = Math.max(0, position)
+            } else if (action === "play") {
+                if (position >= 0) {
+                    videoPlayer.position = position
+                }
+                videoPlayer.play()
+            } else if (action === "pause") {
+                if (position >= 0) {
+                    videoPlayer.position = position
+                }
+                videoPlayer.pause()
+            } else if (action === "stop") {
+                videoPlayer.stop()
+            }
+
+            if (action === "seek" && playing) {
+                videoPlayer.play()
+            }
+
+            applyingRemoteUpdate = false
+        }
+
+        function onRemoteStateReceived(position, playing) {
+            if (role !== "guest") {
+                return
+            }
+
+            const targetPosition = Math.max(0, position)
+            const diff = Math.abs(videoPlayer.position - targetPosition)
+
+            applyingRemoteUpdate = true
+
+            if (diff > 500) {
+                videoPlayer.position = targetPosition
+            } else if (diff > 50) {
+                videoPlayer.playbackRate = videoPlayer.position < targetPosition ? 1.05 : 0.95
+            } else {
+                videoPlayer.playbackRate = 1.0
+            }
+
+            if (playing && videoPlayer.playbackState !== MediaPlayer.PlayingState) {
+                videoPlayer.play()
+            }
+
+            if (!playing && videoPlayer.playbackState === MediaPlayer.PlayingState) {
+                videoPlayer.pause()
+            }
+
+            applyingRemoteUpdate = false
+        }
     }
 }
