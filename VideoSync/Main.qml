@@ -149,7 +149,8 @@ ApplicationWindow {
             Layout.fillWidth: true
             color: "transparent"
             border.color: Material.frameColor
-            border.width: 2
+            border.width: 1
+            radius: 4
 
             Video {
                 id: videoPlayer
@@ -187,9 +188,16 @@ ApplicationWindow {
                 id: seekSlider
                 from: 0
                 to: 1
-                //value: videoPlayer.position / videoPlayer.duration
-                onValueChanged: {
-                    videoPlayer.position = value * videoPlayer.duration
+                Binding {
+                    target: seekSlider
+                    property: "value"
+                    value: videoPlayer.duration > 0 ? videoPlayer.position / videoPlayer.duration : 0
+                    when: !seekSlider.pressed
+                }
+                onMoved: {
+                    if (videoPlayer.duration > 0) {
+                        videoPlayer.position = value * videoPlayer.duration
+                    }
                 }
             }
 
