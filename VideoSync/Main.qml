@@ -156,6 +156,7 @@ ApplicationWindow {
                 anchors.fill: parent
                 fillMode: VideoOutput.PreserveAspectFit
                 source: testVideoSource
+                property bool isPlaying: playbackState===MediaPlayer.PlayingState
             }
 
 
@@ -168,17 +169,17 @@ ApplicationWindow {
 
             Button {
                 id: playButton
-                text: qsTr("Play")
+                text: videoPlayer.isPlaying ? qsTr("Pause") : qsTr("Play")
                 onClicked: {
-                    videoPlayer.play()
+                    videoPlayer.isPlaying ?  videoPlayer.pause() : videoPlayer.play()
                 }
             }
 
             Button {
-                id: pauseButton
-                text: qsTr("Pause")
+                id: stopButton
+                text: qsTr("Stop")
                 onClicked: {
-                    videoPlayer.pause()
+                    videoPlayer.stop()
                 }
             }
 
