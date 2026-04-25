@@ -19,6 +19,11 @@ qt_add_executable(appVideoSync
     filehelper.cpp
 )
 
+if(APPLE AND NOT IOS)
+    target_sources(appVideoSync PRIVATE images/VS.png)
+    set_source_files_properties(images/VS.png PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+endif()
+
 qt_add_resources(appVideoSync "conf"
     PREFIX "/"
     FILES qtquickcontrols2.conf
@@ -36,22 +41,39 @@ qt_add_qml_module(appVideoSync
 # If you are developing for iOS or macOS you should consider setting an
 # explicit, fixed bundle identifier manually though.
 set_target_properties(appVideoSync PROPERTIES
-#    MACOSX_BUNDLE_GUI_IDENTIFIER com.example.appVideoSync
+    MACOSX_BUNDLE_GUI_IDENTIFIER org.tarmoj.videosync
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
     WIN32_EXECUTABLE TRUE
 )
 
+if(APPLE AND NOT IOS)
+    set_target_properties(appVideoSync PROPERTIES
+        MACOSX_BUNDLE_ICON_FILE VS.png
+    )
+endif()
+
 target_link_libraries(appVideoSync
     PRIVATE Qt6::Quick Qt6::Multimedia Qt6::Network Qt6::WebSockets
 )
 
 if(IOS)
+    file(GLOB IOS_APPICON_FILES "${CMAKE_CURRENT_SOURCE_DIR}/ios/Assets.xcassets/AppIcon.appiconset/*")
+    target_sources(appVideoSync PRIVATE ${IOS_APPICON_FILES})
+    set_source_files_properties(${IOS_APPICON_FILES} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/Assets.xcassets/AppIcon.appiconset")
+
     set_target_properties(appVideoSync PROPERTIES
         MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/ios/Info.plist
         XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS ${CMAKE_CURRENT_SOURCE_DIR}/ios/VideoSync.entitlements
+        XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER org.tarmoj.videosync
+        XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME AppIcon
     )
+endif()
+
+if(ANDROID)
+    set_property(TARGET appVideoSync PROPERTY QT_ANDROID_PACKAGE_NAME org.tarmoj.videosync)
+    set_property(TARGET appVideoSync PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/android)
 endif()
 
 include(GNUInstallDirs)

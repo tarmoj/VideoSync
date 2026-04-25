@@ -5,6 +5,7 @@
 #include <QQmlApplicationEngine>
 #include <QStandardPaths>
 #include <QUrl>
+#include <QIcon>
 
 #include "syncmanager.h"
 #include "filehelper.h"
@@ -43,6 +44,10 @@ static QUrl resolveTestVideoUrl()
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
+
+#if !defined(Q_OS_ANDROID) && !defined(Q_OS_IOS)
+    app.setWindowIcon(QIcon(QStringLiteral(":/images/VS.png")));
+#endif
 
     QQmlApplicationEngine engine;
     SyncManager syncManager;

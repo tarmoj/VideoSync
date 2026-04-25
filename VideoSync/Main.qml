@@ -272,6 +272,12 @@ ApplicationWindow {
                         syncManager.sendCommand("stop", 0, false)
                     }
                 }
+
+                onSourceChanged:  {
+                    videoPlayer.pause() // to show the first frame
+                    videoPlayer.seek(0)
+                }
+
             }
 
 
