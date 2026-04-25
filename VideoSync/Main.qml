@@ -155,7 +155,7 @@ ApplicationWindow {
                 id: videoPlayer
                 anchors.fill: parent
                 fillMode: VideoOutput.PreserveAspectFit
-                source: "qrc:/test.mp4" // Set the video source here
+                source: testVideoSource
             }
 
 
