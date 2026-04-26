@@ -59,13 +59,16 @@ target_link_libraries(appVideoSync
 )
 
 if(IOS)
-    file(GLOB IOS_APPICON_FILES "${CMAKE_CURRENT_SOURCE_DIR}/ios/Assets.xcassets/AppIcon.appiconset/*")
-    target_sources(appVideoSync PRIVATE ${IOS_APPICON_FILES})
-    set_source_files_properties(${IOS_APPICON_FILES} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/Assets.xcassets/AppIcon.appiconset")
+    target_sources(appVideoSync PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/ios/Assets.xcassets")
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/ios/Assets.xcassets" PROPERTIES
+        MACOSX_PACKAGE_LOCATION Resources
+    )
+
+    # This command handles embedding and code signing of FFmpeg libraries
+    qt_add_ios_ffmpeg_libraries(appVideoSync)
 
     set_target_properties(appVideoSync PROPERTIES
         MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/ios/Info.plist
-        XCODE_ATTRIBUTE_CODE_SIGN_ENTITLEMENTS ${CMAKE_CURRENT_SOURCE_DIR}/ios/VideoSync.entitlements
         XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER org.tarmoj.videosync
         XCODE_ATTRIBUTE_ASSETCATALOG_COMPILER_APPICON_NAME AppIcon
     )

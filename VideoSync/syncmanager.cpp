@@ -191,6 +191,7 @@ void SyncManager::sendState(qint64 position, bool playing)
 
 void SyncManager::onUdpReadyRead()
 {
+#if !defined(Q_OS_IOS)
     while (m_udpListener->hasPendingDatagrams()) {
         const QNetworkDatagram datagram = m_udpListener->receiveDatagram();
         const QJsonDocument doc = QJsonDocument::fromJson(datagram.data());
@@ -229,6 +230,7 @@ void SyncManager::onUdpReadyRead()
             connectToHost();
         }
     }
+#endif
 }
 
 void SyncManager::onAnnounceTimeout()
@@ -344,6 +346,7 @@ void SyncManager::stopGuestMode()
 
 void SyncManager::startUdpListener()
 {
+#if !defined(Q_OS_IOS)
     if (m_udpListener->state() == QAbstractSocket::BoundState) {
         return;
     }
@@ -354,6 +357,7 @@ void SyncManager::startUdpListener()
     if (!bound) {
         qCWarning(syncLog) << "Unable to bind UDP discovery socket:" << m_udpListener->errorString();
     }
+#endif
 }
 
 void SyncManager::stopUdpListener()
@@ -365,6 +369,7 @@ void SyncManager::stopUdpListener()
 
 void SyncManager::sendAnnounce()
 {
+#if !defined(Q_OS_IOS)
     if (m_role != QStringLiteral("host")) {
         return;
     }
@@ -376,6 +381,7 @@ void SyncManager::sendAnnounce()
 
     const QByteArray payload = QJsonDocument(obj).toJson(QJsonDocument::Compact);
     m_udpSender->writeDatagram(payload, QHostAddress::Broadcast, DiscoveryPort);
+#endif
 }
 
 void SyncManager::startWebSocketServer()
