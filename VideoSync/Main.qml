@@ -10,13 +10,14 @@ ApplicationWindow {
     width: 640
     height: 480
     visible: true
-    property string version: "0.2.1"
+    property string version: "0.2.2"
     title: qsTr("VideoSync") + " " + version
     color: Material.background
 
     property string role: "guest" // "host" or "guest"
     property bool applyingRemoteUpdate: false
     property bool syncReady: false
+    property bool videoFullscreen: false
     property url currentVideoSource: testVideoSource
     property string currentVideoName: (fileHelper ? fileHelper.videoFileName(currentVideoSource) : "")
     property color backgroundEndColor: role==="host" ?  "darkgreen" : "darkblue"
@@ -30,6 +31,13 @@ ApplicationWindow {
         return String(hours).padStart(2, "0") + ":"
                 + String(minutes).padStart(2, "0") + ":"
                 + String(seconds).padStart(2, "0")
+    }
+
+    function toggleVideoFullscreen() {
+        videoFullscreen = !videoFullscreen
+        if (videoFullscreen) {
+            drawer.close()
+        }
     }
 
     Component.onCompleted: {
@@ -53,6 +61,7 @@ ApplicationWindow {
 
     header: ToolBar {
         id: toolBar
+        visible: !videoFullscreen
         width: parent.width
 
         implicitHeight: contentItem.implicitHeight + topPadding + bottomPadding
@@ -212,6 +221,7 @@ ApplicationWindow {
 
         Flow {
             id: menuRow
+            visible: !videoFullscreen
             spacing: 10
             Layout.fillWidth: true
 
@@ -272,6 +282,29 @@ ApplicationWindow {
             border.width: 1
             radius: 4
 
+            states: State {
+                name: "fullscreen"
+                when: app.videoFullscreen
+                ParentChange {
+                    target: videoArea
+                    parent: app.contentItem
+                }
+                AnchorChanges {
+                    target: videoArea
+                    anchors.left: app.contentItem.left
+                    anchors.right: app.contentItem.right
+                    anchors.top: app.contentItem.top
+                    anchors.bottom: app.contentItem.bottom
+                }
+                PropertyChanges {
+                    target: videoArea
+                    z: 999
+                    color: "black"
+                    border.width: 0
+                    radius: 0
+                }
+            }
+
             Video {
                 id: videoPlayer
                 anchors.fill: parent
@@ -300,10 +333,26 @@ ApplicationWindow {
 
             }
 
+            MouseArea {
+                id: videoMouseArea
+                anchors.fill: parent
+                acceptedButtons: Qt.LeftButton
+                onClicked: {
+                    singleClickTimer.restart()
+                }
+                onDoubleClicked: function(mouse) {
+                    singleClickTimer.stop()
+                    app.toggleVideoFullscreen()
+                    mouse.accepted = true
+                }
+            }
+
 
         }
 
         RowLayout {
+            id: controlRow
+            visible: !videoFullscreen
             Layout.fillWidth: true
 
             Item { Layout.fillWidth: true }
@@ -365,6 +414,19 @@ ApplicationWindow {
         onTriggered: {
             if (syncManager) {
                 syncManager.sendState(videoPlayer.position, videoPlayer.isPlaying)
+            }
+        }
+    }
+
+    Timer {
+        id: singleClickTimer
+        interval: 300
+        repeat: false
+        onTriggered: {
+            if (videoPlayer.isPlaying) {
+                videoPlayer.pause()
+            } else {
+                videoPlayer.play()
             }
         }
     }
