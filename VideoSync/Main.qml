@@ -11,7 +11,7 @@ ApplicationWindow {
     width: 640
     height: 480
     visible: true
-    property string version: "0.2.4"
+    property string version: "0.2.5"
     title: qsTr("VideoSync") + " " + version
     color: Material.background
 
@@ -126,7 +126,7 @@ ApplicationWindow {
 
     Drawer {
         id: drawer
-        //width is automatic
+        width: Math.min(Math.max(app.width * 0.7, 360), app.width - 24)
         height: app.height
         //y: toolBar.height
         property int marginLeft: 20
@@ -136,140 +136,144 @@ ApplicationWindow {
             color: Material.backgroundColor.lighter()
         }
 
-
-        ColumnLayout {
+        ScrollView {
             anchors.fill: parent
             anchors.margins: 10
-            spacing: 10
-            visible: true
+            clip: true
+            contentWidth: availableWidth
 
-            MenuItem {
-                text: qsTr("Load Video")
-                onTriggered: fileDialog.open()
-            }
+            ColumnLayout {
+                width: availableWidth
+                spacing: 10
 
-            MenuItem {
-                text: qsTr("Load Test Video")
-                onTriggered: {
-                    videoPlayer.stop()
-                    currentVideoSource = testVideoSource
-                    drawer.close()
+                MenuItem {
+                    text: qsTr("Load Video")
+                    onTriggered: fileDialog.open()
                 }
-            }
 
-            ComboBox {
-                id: recentVideosCombo
-                Layout.fillWidth: true
-                visible: appSettings.recentVideos.length > 0
-                displayText: qsTr("Recent Videos")
-                model: appSettings.recentVideos
-                textRole: "name"
-                onActivated: function(index) {
-                    const item = appSettings.recentVideos[index]
-                    videoPlayer.stop()
-                    currentVideoSource = item.url
-                    appSettings.lastVideoPath = item.url
-                    currentIndex = -1
-                    drawer.close()
-                }
-            }
-
-            MenuItem {
-                text: qsTr("Clear Recent Videos")
-                visible: appSettings.recentVideos.length > 0
-                onTriggered: {
-                    appSettings.recentVideos = []
-                    appSettings.lastVideoPath = ""
-                }
-            }
-
-            MenuItem {
-                text: qsTr("Update IP")
-                onTriggered: {
-                    if (syncManager) {
-                        syncManager.updateLocalIp()
+                MenuItem {
+                    text: qsTr("Load Test Video")
+                    onTriggered: {
+                        videoPlayer.stop()
+                        currentVideoSource = testVideoSource
+                        drawer.close()
                     }
                 }
-            }
 
-            RowLayout {
-                Layout.fillWidth: true
-                Label {
-                    text: qsTr("WS Port")
-                }
-
-                SpinBox {
-                    id: wsPortSpinBox
-                    from: 1024
-                    to: 65535
-                    editable: true
-                    value: syncManager ? syncManager.wsPort : 9870
-                    onValueModified: {
-                        if (syncManager) {
-                            syncManager.wsPort = value
-                        }
-                        appSettings.wsPort = value
-                    }
-                }
-            }
-
-            RowLayout {
-                Layout.preferredWidth: 300
-                visible: role === "guest"
-
-                Label {
-                    text: qsTr("Host IP")
-                    visible: role === "guest"
-                }
-
-                TextField {
-                    id: hostIpField
+                ComboBox {
+                    id: recentVideosCombo
                     Layout.fillWidth: true
-                    visible: role === "guest"
-                    placeholderText: qsTr("192.168.1.100")
-                    text: syncManager ? syncManager.hostIp : ""
-                    onEditingFinished: {
+                    visible: appSettings.recentVideos.length > 0
+                    displayText: qsTr("Recent Videos")
+                    model: appSettings.recentVideos
+                    textRole: "name"
+                    onActivated: function(index) {
+                        const item = appSettings.recentVideos[index]
+                        videoPlayer.stop()
+                        currentVideoSource = item.url
+                        appSettings.lastVideoPath = item.url
+                        currentIndex = -1
+                        drawer.close()
+                    }
+                }
+
+                MenuItem {
+                    text: qsTr("Clear Recent Videos")
+                    visible: appSettings.recentVideos.length > 0
+                    onTriggered: {
+                        appSettings.recentVideos = []
+                        appSettings.lastVideoPath = ""
+                    }
+                }
+
+                MenuItem {
+                    text: qsTr("Update IP")
+                    onTriggered: {
                         if (syncManager) {
-                            syncManager.hostIp = text
-                        }
-                        appSettings.hostIp = text
-                    }
-                }
-
-                ToolButton {
-                    text: syncManager && syncManager.connected ? qsTr("Disconnect") : qsTr("Connect")
-                    onClicked: {
-                        if (!syncManager) {
-                            return
-                        }
-
-                        if (syncManager.connected) {
-                            syncManager.disconnectFromHost()
-                        } else {
-                            syncManager.hostIp = hostIpField.text
-                            syncManager.connectToHost()
+                            syncManager.updateLocalIp()
                         }
                     }
                 }
-            }
 
+                RowLayout {
+                    Layout.fillWidth: true
+                    Label {
+                        text: qsTr("WS Port")
+                    }
 
-
-            Label {
-                text: syncManager ? syncManager.connectionStatus : qsTr("Sync unavailable")
-                wrapMode: Text.Wrap
-            }
-
-            Item {Layout.fillHeight: true}
-
-            MenuItem {
-                text: qsTr("Info")
-                onTriggered: {
-                    infoDialog.open()
-                    drawer.close()
+                    SpinBox {
+                        id: wsPortSpinBox
+                        from: 1024
+                        to: 65535
+                        editable: true
+                        value: syncManager ? syncManager.wsPort : 9870
+                        onValueModified: {
+                            if (syncManager) {
+                                syncManager.wsPort = value
+                            }
+                            appSettings.wsPort = value
+                        }
+                    }
                 }
-            }
 
+                RowLayout {
+                    Layout.minimumWidth: 320
+                    visible: role === "guest"
+
+                    Label {
+                        text: qsTr("Host IP")
+                        visible: role === "guest"
+                    }
+
+                    TextField {
+                        id: hostIpField
+                        Layout.fillWidth: true
+                        visible: role === "guest"
+                        placeholderText: qsTr("192.168.1.100")
+                        text: syncManager ? syncManager.hostIp : ""
+                        onEditingFinished: {
+                            if (syncManager) {
+                                syncManager.hostIp = text
+                            }
+                            appSettings.hostIp = text
+                        }
+                    }
+
+                    ToolButton {
+                        text: syncManager && syncManager.connected ? qsTr("Disconnect") : qsTr("Connect")
+                        onClicked: {
+                            if (!syncManager) {
+                                return
+                            }
+
+                            if (syncManager.connected) {
+                                syncManager.disconnectFromHost()
+                            } else {
+                                syncManager.hostIp = hostIpField.text
+                                syncManager.connectToHost()
+                            }
+                        }
+                    }
+                }
+
+
+
+                Label {
+                    text: syncManager ? syncManager.connectionStatus : qsTr("Sync unavailable")
+                    wrapMode: Text.Wrap
+                    Layout.fillWidth: true
+                }
+
+
+                MenuItem {
+                    text: qsTr("Info")
+                    onTriggered: {
+                        infoDialog.open()
+                        drawer.close()
+                    }
+                }
+
+            }
         }
 
     }
@@ -442,12 +446,22 @@ ApplicationWindow {
                 anchors.fill: parent
                 acceptedButtons: Qt.LeftButton
                 onClicked: {
-                    singleClickTimer.restart()
+                    videoPlayer.isPlaying ? videoPlayer.pause() : videoPlayer.play()
                 }
-                onDoubleClicked: function(mouse) {
-                    singleClickTimer.stop()
-                    app.toggleVideoFullscreen()
-                    mouse.accepted = true
+            }
+
+            ToolButton {
+                id: fullscreenButton
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: 12
+                z: 1
+                icon.source: app.videoFullscreen ? "qrc:/images/fullscreen_exit.svg" : "qrc:/images/fullscreen.svg"
+                onClicked: app.toggleVideoFullscreen()
+
+                background: Rectangle {
+                    radius: width / 2
+                    color: "#66000000"
                 }
             }
 
@@ -528,19 +542,6 @@ ApplicationWindow {
         onTriggered: {
             if (syncManager) {
                 syncManager.sendState(videoPlayer.position, videoPlayer.isPlaying)
-            }
-        }
-    }
-
-    Timer {
-        id: singleClickTimer
-        interval: 300
-        repeat: false
-        onTriggered: {
-            if (videoPlayer.isPlaying) {
-                videoPlayer.pause()
-            } else {
-                videoPlayer.play()
             }
         }
     }
