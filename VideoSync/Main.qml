@@ -6,6 +6,7 @@ import QtQuick.Dialogs
 
 
 ApplicationWindow {
+    id: app
     width: 640
     height: 480
     visible: true
@@ -27,8 +28,8 @@ ApplicationWindow {
         const seconds = totalSeconds % 60
 
         return String(hours).padStart(2, "0") + ":"
-            + String(minutes).padStart(2, "0") + ":"
-            + String(seconds).padStart(2, "0")
+                + String(minutes).padStart(2, "0") + ":"
+                + String(seconds).padStart(2, "0")
     }
 
     Component.onCompleted: {
@@ -40,12 +41,12 @@ ApplicationWindow {
     }
 
     background: Rectangle {
-       gradient: Gradient {
-          GradientStop { position: 0.0; color: Material.backgroundColor }
-          GradientStop { position: 0.6; color: Material.backgroundColor }
-          GradientStop { position: 0.8; color: backgroundEndColor.darker() }
-          GradientStop { position: 1.0; color: backgroundEndColor }
-       }
+        gradient: Gradient {
+            GradientStop { position: 0.0; color: Material.backgroundColor }
+            GradientStop { position: 0.6; color: Material.backgroundColor }
+            GradientStop { position: 0.8; color: backgroundEndColor.darker() }
+            GradientStop { position: 1.0; color: backgroundEndColor }
+        }
     }
 
     flags: Qt.ExpandedClientAreaHint | Qt.NoTitleBarBackgroundHint
@@ -89,106 +90,119 @@ ApplicationWindow {
     }
 
     Drawer {
-       id: drawer
-       //width is automatic
-       //height: window.height - toolBar.height
-       y: toolBar.height
-       property int marginLeft: 20
+        id: drawer
+        //width is automatic
+        height: app.height
+        //y: toolBar.height
+        property int marginLeft: 20
 
-       //background: Rectangle {anchors.fill:parent; color: Material.backgroundColor.lighter()}
-
-
-       ColumnLayout {
-          anchors.fill: parent
-          anchors.margins: 10
-          spacing: 5
-          visible: true
-
-          Button {
-              text: qsTr("Load Video")
-              onClicked: fileDialog.open()
-          }
-
-          Button {
-              text: qsTr("Test Video")
-              onClicked: {
-                  videoPlayer.stop()
-                  currentVideoSource = testVideoSource
-                  drawer.close()
-              }
-          }
-
-          Button {
-              text: qsTr("Update IP")
-              onClicked: {
-                  if (syncManager) {
-                      syncManager.updateLocalIp()
-                  }
-              }
-          }
-
-          Label {
-              text: qsTr("WS Port")
-          }
-
-          SpinBox {
-              id: wsPortSpinBox
-              from: 1024
-              to: 65535
-              editable: true
-              value: syncManager ? syncManager.wsPort : 9870
-              onValueModified: {
-                  if (syncManager) {
-                      syncManager.wsPort = value
-                  }
-              }
-          }
-
-          Label {
-              text: qsTr("Host IP")
-              visible: role === "guest"
-          }
-
-          TextField {
-              id: hostIpField
-              visible: role === "guest"
-              placeholderText: qsTr("192.168.1.100")
-              text: syncManager ? syncManager.hostIp : ""
-              onEditingFinished: {
-                  if (syncManager) {
-                      syncManager.hostIp = text
-                  }
-              }
-          }
-
-          Button {
-              visible: role === "guest"
-              text: syncManager && syncManager.connected ? qsTr("Disconnect") : qsTr("Connect")
-              onClicked: {
-                  if (!syncManager) {
-                      return
-                  }
-
-                  if (syncManager.connected) {
-                      syncManager.disconnectFromHost()
-                  } else {
-                      syncManager.hostIp = hostIpField.text
-                      syncManager.connectToHost()
-                  }
-              }
-          }
-
-          Label {
-              text: syncManager ? syncManager.connectionStatus : qsTr("Sync unavailable")
-              wrapMode: Text.Wrap
-          }
-
-          Item { Layout.fillWidth: true; Layout.preferredHeight: 1 }
+        background: Rectangle {
+            anchors.fill:parent;
+            color: Material.backgroundColor.lighter()
+        }
 
 
-          Item {Layout.fillHeight: true}
+        ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 10
+            spacing: 10
+            visible: true
 
-       }
+            MenuItem {
+                text: qsTr("Load Video")
+                onTriggered: fileDialog.open()
+            }
+
+            MenuItem {
+                text: qsTr("Load Test Video")
+                onTriggered: {
+                    videoPlayer.stop()
+                    currentVideoSource = testVideoSource
+                    drawer.close()
+                }
+            }
+
+            MenuItem {
+                text: qsTr("Update IP")
+                onTriggered: {
+                    if (syncManager) {
+                        syncManager.updateLocalIp()
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                Label {
+                    text: qsTr("WS Port")
+                }
+
+                SpinBox {
+                    id: wsPortSpinBox
+                    from: 1024
+                    to: 65535
+                    editable: true
+                    value: syncManager ? syncManager.wsPort : 9870
+                    onValueModified: {
+                        if (syncManager) {
+                            syncManager.wsPort = value
+                        }
+                    }
+                }
+            }
+
+            RowLayout {
+                Layout.preferredWidth: 300
+                visible: role === "guest"
+
+                Label {
+                    text: qsTr("Host IP")
+                    visible: role === "guest"
+                }
+
+                TextField {
+                    id: hostIpField
+                    Layout.fillWidth: true
+                    visible: role === "guest"
+                    placeholderText: qsTr("192.168.1.100")
+                    text: syncManager ? syncManager.hostIp : ""
+                    onEditingFinished: {
+                        if (syncManager) {
+                            syncManager.hostIp = text
+                        }
+                    }
+                }
+
+                ToolButton {
+                    text: syncManager && syncManager.connected ? qsTr("Disconnect") : qsTr("Connect")
+                    onClicked: {
+                        if (!syncManager) {
+                            return
+                        }
+
+                        if (syncManager.connected) {
+                            syncManager.disconnectFromHost()
+                        } else {
+                            syncManager.hostIp = hostIpField.text
+                            syncManager.connectToHost()
+                        }
+                    }
+                }
+            }
+
+
+
+            Label {
+                text: syncManager ? syncManager.connectionStatus : qsTr("Sync unavailable")
+                wrapMode: Text.Wrap
+            }
+
+            Item { Layout.fillWidth: true; Layout.preferredHeight: 1 }
+
+
+            Item {Layout.fillHeight: true}
+
+        }
 
     }
 
@@ -199,15 +213,17 @@ ApplicationWindow {
         spacing: 10
 
 
-        RowLayout {
+        Flow {
             id: menuRow
-            //spacing: 10
+            spacing: 10
             Layout.fillWidth: true
 
-
             Label {
-               text: qsTr("Guest")
-               horizontalAlignment: Text.AlignRight
+                text: qsTr("Guest")
+                height: hostGuestSwitch.implicitHeight
+                Layout.alignment: Qt.AlignRight
+                horizontalAlignment: Text.AlignRight
+                verticalAlignment: Text.AlignVCenter
             }
 
             Switch {
@@ -222,23 +238,30 @@ ApplicationWindow {
                 }
             }
 
+
             Label {
                 id: connectionLabel
+                height: hostGuestSwitch.implicitHeight
                 text: role === "host"
-                    ? qsTr("Connections: %1").arg(syncManager ? syncManager.connectionCount : 0)
-                    : qsTr("Status: %1").arg(syncManager && syncManager.connected ? qsTr("Connected") : qsTr("Disconnected"))
+                      ? qsTr("Connections: %1").arg(syncManager ? syncManager.connectionCount : 0)
+                      : qsTr("Status: %1").arg(syncManager && syncManager.connected ? qsTr("Connected") : qsTr("Disconnected"))
+                verticalAlignment: Text.AlignVCenter
             }
 
             Label {
                 id: ipLabel
+                height: hostGuestSwitch.implicitHeight
                 text: qsTr("IP: %1").arg(syncManager ? syncManager.localIp : "-")
+                verticalAlignment: Text.AlignVCenter
             }
 
             Label {
                 id: videoLabel
+                height: hostGuestSwitch.implicitHeight
                 text: currentVideoName || qsTr("No video")
                 elide: Text.ElideMiddle
                 Layout.maximumWidth: 150
+                verticalAlignment: Text.AlignVCenter
             }
 
         }
