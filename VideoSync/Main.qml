@@ -11,7 +11,7 @@ ApplicationWindow {
     width: 640
     height: 480
     visible: true
-    property string version: "0.2.3"
+    property string version: "0.2.4"
     title: qsTr("VideoSync") + " " + version
     color: Material.background
 
@@ -57,6 +57,7 @@ ApplicationWindow {
         property string hostIp: ""
         property int wsPort: 9870
         property var recentVideos: []
+        property bool muted: false
     }
 
     Component.onCompleted: {
@@ -355,6 +356,7 @@ ApplicationWindow {
                 fillMode: VideoOutput.PreserveAspectFit
                 source: currentVideoSource
                 property bool isPlaying: playbackState===MediaPlayer.PlayingState
+                volume: appSettings.muted ? 0.0 : 1.0
 
                 onPlaybackStateChanged: {
                     if (!syncReady || applyingRemoteUpdate) {
@@ -401,17 +403,19 @@ ApplicationWindow {
 
             Item { Layout.fillWidth: true }
 
-            Button {
+            ToolButton {
                 id: playButton
-                text: videoPlayer.isPlaying ? qsTr("Pause") : qsTr("Play")
+                icon.source:  videoPlayer.isPlaying ? "qrc:/images/pause.svg" : "qrc:/images/play.svg"
+                //text: videoPlayer.isPlaying ? qsTr("Pause") : qsTr("Play")
                 onClicked: {
                     videoPlayer.isPlaying ?  videoPlayer.pause() : videoPlayer.play()
                 }
             }
 
-            Button {
+            ToolButton {
                 id: stopButton
-                text: qsTr("Stop")
+                //text: qsTr("Stop")
+                icon.source:  "qrc:/images/stop.svg"
                 onClicked: {
                     videoPlayer.stop()
                 }
@@ -442,6 +446,14 @@ ApplicationWindow {
             Label {
                 id: timeLabel
                 text: formatVideoTime(videoPlayer.position) + " / " + formatVideoTime(videoPlayer.duration)
+            }
+
+            ToolButton {
+                id: muteButton
+                checkable: true
+                checked: appSettings.muted
+                icon.source: checked ? "qrc:/images/no_sound.svg" : "qrc:/images/sound.svg"
+                onToggled: appSettings.muted = checked
             }
 
             Item { Layout.fillWidth: true }
