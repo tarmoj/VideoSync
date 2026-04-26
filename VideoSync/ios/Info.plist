@@ -22,8 +22,32 @@
     <string>$(CURRENT_PROJECT_VERSION)</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+        <string>UIInterfaceOrientationPortrait</string>
+        <string>UIInterfaceOrientationPortraitUpsideDown</string>
+        <string>UIInterfaceOrientationLandscapeLeft</string>
+        <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
     <key>NSLocalNetworkUsageDescription</key>
     <string>VideoSync uses your local network to discover peers and sync playback.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>Camera is not used by this app.</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Microphone is not used by this app.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>Photo library access is not used by this app.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>Photo library access is not used by this app.</string>
     <key>NSAppTransportSecurity</key>
     <dict>
         <key>NSAllowsLocalNetworking</key>
