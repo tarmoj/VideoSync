@@ -6,7 +6,63 @@
 #include <QLoggingCategory>
 #include <QStandardPaths>
 
+#if defined(Q_OS_ANDROID)
+#include <QJniEnvironment>
+#include <QJniObject>
+#endif
+
 Q_LOGGING_CATEGORY(fileLog, "videosync.file")
+
+#if defined(Q_OS_ANDROID)
+static QString androidDisplayName(const QUrl &url)
+{
+    QJniObject activity = QJniObject::callStaticObjectMethod(
+        "org/qtproject/qt/android/QtNative",
+        "activity",
+        "()Landroid/app/Activity;");
+    if (!activity.isValid())
+        return {};
+
+    QJniObject contentResolver = activity.callObjectMethod(
+        "getContentResolver",
+        "()Landroid/content/ContentResolver;");
+    if (!contentResolver.isValid())
+        return {};
+
+    QJniObject uri = QJniObject::callStaticObjectMethod(
+        "android/net/Uri", "parse",
+        "(Ljava/lang/String;)Landroid/net/Uri;",
+        QJniObject::fromString(url.toString()).object<jstring>());
+    if (!uri.isValid())
+        return {};
+
+    QJniEnvironment env;
+    jclass stringClass = env->FindClass("java/lang/String");
+    QJniObject colName = QJniObject::fromString(QStringLiteral("_display_name"));
+    jobjectArray projection = env->NewObjectArray(1, stringClass, colName.object<jstring>());
+    env->DeleteLocalRef(stringClass);
+
+    QJniObject cursor = contentResolver.callObjectMethod(
+        "query",
+        "(Landroid/net/Uri;[Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;Ljava/lang/String;)Landroid/database/Cursor;",
+        uri.object<jobject>(),
+        projection,
+        nullptr, nullptr, nullptr);
+    env->DeleteLocalRef(projection);
+
+    if (!cursor.isValid())
+        return {};
+
+    QString result;
+    if (cursor.callMethod<jboolean>("moveToFirst")) {
+        QJniObject name = cursor.callObjectMethod("getString", "(I)Ljava/lang/String;", jint(0));
+        if (name.isValid())
+            result = name.toString();
+    }
+    cursor.callMethod<void>("close");
+    return result;
+}
+#endif
 
 FileHelper::FileHelper(QObject *parent)
     : QObject(parent)
@@ -64,6 +120,14 @@ QString FileHelper::videoFileName(const QUrl &url)
     if (url.isEmpty()) {
         return QString();
     }
+
+#if defined(Q_OS_ANDROID)
+    if (url.scheme() == QLatin1String("content")) {
+        const QString name = androidDisplayName(url);
+        if (!name.isEmpty())
+            return name;
+    }
+#endif
 
     const QString localPath = url.toLocalFile();
     if (!localPath.isEmpty()) {
