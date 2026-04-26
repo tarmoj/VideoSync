@@ -3,6 +3,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QtMultimedia
 import QtQuick.Dialogs
+import QtCore
 
 
 ApplicationWindow {
@@ -10,7 +11,7 @@ ApplicationWindow {
     width: 640
     height: 480
     visible: true
-    property string version: "0.2.2"
+    property string version: "0.2.3"
     title: qsTr("VideoSync") + " " + version
     color: Material.background
 
@@ -40,11 +41,35 @@ ApplicationWindow {
         }
     }
 
+    function addRecentVideo(url, name) {
+        let list = appSettings.recentVideos.slice()
+        const urlStr = url.toString()
+        const idx = list.findIndex(function(v) { return v.url === urlStr })
+        if (idx !== -1) list.splice(idx, 1)
+        list.unshift({ url: urlStr, name: name })
+        if (list.length > 10) list = list.slice(0, 10)
+        appSettings.recentVideos = list
+    }
+
+    Settings {
+        id: appSettings
+        property string lastVideoPath: ""
+        property string hostIp: ""
+        property int wsPort: 9870
+        property var recentVideos: []
+    }
+
     Component.onCompleted: {
         if (syncManager) {
             syncManager.role = role
             syncManager.updateLocalIp()
+            if (appSettings.hostIp.length > 0)
+                syncManager.hostIp = appSettings.hostIp
+            if (appSettings.wsPort > 0)
+                syncManager.wsPort = appSettings.wsPort
         }
+        if (appSettings.lastVideoPath.length > 0)
+            currentVideoSource = appSettings.lastVideoPath
         syncReady = true
     }
 
@@ -131,6 +156,23 @@ ApplicationWindow {
                 }
             }
 
+            ComboBox {
+                id: recentVideosCombo
+                Layout.fillWidth: true
+                visible: appSettings.recentVideos.length > 0
+                displayText: qsTr("Recent Videos")
+                model: appSettings.recentVideos
+                textRole: "name"
+                onActivated: function(index) {
+                    const item = appSettings.recentVideos[index]
+                    videoPlayer.stop()
+                    currentVideoSource = item.url
+                    appSettings.lastVideoPath = item.url
+                    currentIndex = -1
+                    drawer.close()
+                }
+            }
+
             MenuItem {
                 text: qsTr("Update IP")
                 onTriggered: {
@@ -156,6 +198,7 @@ ApplicationWindow {
                         if (syncManager) {
                             syncManager.wsPort = value
                         }
+                        appSettings.wsPort = value
                     }
                 }
             }
@@ -179,6 +222,7 @@ ApplicationWindow {
                         if (syncManager) {
                             syncManager.hostIp = text
                         }
+                        appSettings.hostIp = text
                     }
                 }
 
@@ -397,7 +441,7 @@ ApplicationWindow {
 
             Label {
                 id: timeLabel
-                text: formatVideoTime(videoPlayer.position)
+                text: formatVideoTime(videoPlayer.position) + " / " + formatVideoTime(videoPlayer.duration)
             }
 
             Item { Layout.fillWidth: true }
@@ -441,6 +485,9 @@ ApplicationWindow {
             if (resolved.toString().length > 0) {
                 videoPlayer.stop()
                 currentVideoSource = resolved
+                appSettings.lastVideoPath = resolved.toString()
+                const name = fileHelper ? fileHelper.videoFileName(resolved) : resolved.toString()
+                addRecentVideo(resolved, name)
                 drawer.close()
             }
         }

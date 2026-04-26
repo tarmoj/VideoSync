@@ -43,7 +43,12 @@ static QUrl resolveTestVideoUrl()
 
 int main(int argc, char *argv[])
 {
+
     QGuiApplication app(argc, argv);
+
+    app.setOrganizationName("Tarmo Johannes Events and Software");
+    app.setOrganizationDomain("videosync.org");
+    app.setApplicationName("VideoSync Player");
 
 #if !defined(Q_OS_ANDROID) && !defined(Q_OS_IOS)
     app.setWindowIcon(QIcon(QStringLiteral(":/images/VS.png")));
