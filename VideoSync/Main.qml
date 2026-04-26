@@ -10,7 +10,7 @@ ApplicationWindow {
     width: 640
     height: 480
     visible: true
-    property string version: "0.2.0"
+    property string version: "0.2.1"
     title: qsTr("VideoSync") + " " + version
     color: Material.background
 
@@ -196,9 +196,6 @@ ApplicationWindow {
                 text: syncManager ? syncManager.connectionStatus : qsTr("Sync unavailable")
                 wrapMode: Text.Wrap
             }
-
-            Item { Layout.fillWidth: true; Layout.preferredHeight: 1 }
-
 
             Item {Layout.fillHeight: true}
 
