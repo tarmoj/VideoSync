@@ -175,6 +175,15 @@ ApplicationWindow {
             }
 
             MenuItem {
+                text: qsTr("Clear Recent Videos")
+                visible: appSettings.recentVideos.length > 0
+                onTriggered: {
+                    appSettings.recentVideos = []
+                    appSettings.lastVideoPath = ""
+                }
+            }
+
+            MenuItem {
                 text: qsTr("Update IP")
                 onTriggered: {
                     if (syncManager) {
