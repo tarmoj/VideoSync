@@ -262,8 +262,57 @@ ApplicationWindow {
 
             Item {Layout.fillHeight: true}
 
+            MenuItem {
+                text: qsTr("Info")
+                onTriggered: {
+                    infoDialog.open()
+                    drawer.close()
+                }
+            }
+
         }
 
+    }
+
+    Dialog {
+        id: infoDialog
+        title: qsTr("About VideoSync")
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Close
+
+        ColumnLayout {
+            spacing: 8
+            width: Math.min(app.width - 40, 420)
+
+            Label {
+                text: qsTr("VideoSync %1").arg(version)
+                font.bold: true
+                font.pointSize: 16
+            }
+
+            Label {
+                text: qsTr("Synchronize video playback over a local network.\n\n" +
+                           "How to use:\n" +
+                           "• One device switches to Host mode.\n" +
+                           "• Other devices stay in Guest mode and connect to the host IP.\n" +
+                           "• Load a video on each device (same file).\n" +
+                           "• Play, pause and seek on any of the devices — others follow automatically.\n" +
+                           "• Double-tap the video for fullscreen; single tap to play/pause.")
+                wrapMode: Text.Wrap
+                Layout.fillWidth: true
+            }
+
+            Label {
+                text: qsTr("Based on Qt Framework — qt.io")
+                font.italic: true
+            }
+
+            Label {
+                text: qsTr("© Tarmo Johannes\ntrmjhnns@gmail.com")
+                font.pointSize: 10
+            }
+        }
     }
 
     ColumnLayout {

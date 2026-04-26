@@ -1,12 +1,72 @@
-# Video Sync Player
+# VideoSync
 
-... to play video files in sync in several browsers. 
+Synchronize video playback across multiple devices over a local Wi-Fi network.
 
-Developed for video scores of [Gudmundur Steinn Gunnarson](https://gudmundursteinn.net/). Naturally it can be used for  any other video files supported by the browser but playing video scores is the intended application.
+© Tarmo Johannes — trmjhnns@gmail.com
 
-Place the index.php to the same folder with the video files on your web server (PHP 8 required). The file list on the page will be filled automitacally.
+Built with the [Qt Framework](https://qt.io) (Qt 6, QML, Qt Multimedia, Qt WebSockets).
 
-Open the page. On one of the devices select the "Host mode", on others "Join the session". Scan the QR code of the host and all play/pause/stop/seek changes will be synced.
+---
+
+## Features
+
+- **Host / Guest roles** — one device acts as Host, the rest as Guests.
+- **Automatic LAN discovery** — Guests auto-detect the Host via UDP broadcast; no manual IP entry required in most cases.
+- **Drift correction** — playback rate is nudged (±5 %) when drift is small; hard seek is used when drift exceeds 500 ms.
+- **Recent videos list** — quickly reload previously watched files.
+- **Mute toggle** — silence audio independently on each device.
+- **Video-only fullscreen** — double-tap the video area; single tap to play/pause.
+- Cross-platform: **Android**, **iOS**, **Linux**, **macOS**, **Windows**.
+
+---
+
+## How to use
+
+### Host device
+1. Open VideoSync and switch the toggle to **Host**.
+2. Load a video file via the drawer menu → **Load Video**.
+3. Your local IP address is shown in the top bar.
+
+### Guest devices
+1. Keep the toggle on **Guest**.
+2. Open the drawer and enter the Host's IP in the **Host IP** field (auto-filled if discovery succeeded), then tap **Connect**.
+3. Load the same video file locally.
+4. Press **Play** on any of the deivces — all devices follow.
+
+### Controls
+| Action | Result |
+|---|---|
+| Single tap on video | Play / Pause |
+| Double tap on video | Toggle fullscreen |
+| Seek slider | Seek (synced to all Guests) |
+| 🔇 Mute button | Silence audio locally |
+
+---
+
+## Web version
+
+The original `index.php` browser-based version synchronizes playback across browsers via PHP/WebSocket. Place it alongside your video files on a PHP 8 web server. One device selects **Host mode**, others scan the QR code to join.
+
+Developed for video scores of [Gudmundur Steinn Gunnarson](https://gudmundursteinn.net/).
+
+---
+
+## Build
+
+Requires **Qt 6.5+** with the following modules: `Quick`, `Multimedia`, `Network`, `WebSockets`.
+
+```bash
+cmake -S VideoSync -B build
+cmake --build build
+```
+
+For Android and iOS, open the project in **Qt Creator** and use the corresponding kit.
+
+---
+
+## License
+
+See [LICENSE](LICENSE).
 
 The devices must be in one network with internet access.
 
