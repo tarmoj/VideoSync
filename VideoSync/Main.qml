@@ -11,7 +11,7 @@ ApplicationWindow {
     width: 640
     height: 480
     visible: true
-    property string version: "0.2.5"
+    property string version: "0.2.7"
     title: qsTr("VideoSync") + " " + version
     color: Material.background
 
